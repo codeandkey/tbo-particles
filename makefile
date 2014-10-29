@@ -25,4 +25,4 @@ $(OUTPUT): $(OBJECTS) $(COBJECTS)
 	$(C_CC) $(C_CFLAGS) -c $< -o $@
 
 clean:
-	rm -rf *.o $(OUTPUT)
+	rm -rf *.o *.co $(OUTPUT)
