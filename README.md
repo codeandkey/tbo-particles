@@ -1,8 +1,4 @@
-mini-particles
-==============
-
-A 12-hour implementation of mouse-controlled particles in OpenGL.
-mini-particles : a quick OpenGL particle system, using uniform texture buffer objects to facilitate large amounts of particles.
-
-Use the mouse in the program window to create a gravity vortex.
-BE SURE to configure the program before use.
+# mini-particles
+### Implementation
+This program uses uniform texture buffer objects to store particle information.
+Geometry shaders are used to animate the particles and then another pass of geometry shaders triangulates the particles for rendering.
