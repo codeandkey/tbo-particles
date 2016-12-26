@@ -39,13 +39,12 @@
 
 /* Config defines */
 
-#define PARTICLE_COUNT_DEFAULT 175000
-#define CONFIG_FILENAME "particles.cfg"
+#define PARTICLE_COUNT 175000
 
-#define WINDOW_WIDTH_DEFAULT 640
-#define WINDOW_HEIGHT_DEFAULT 480
-#define WINDOW_VSYNC_DEFAULT 1
-#define WINDOW_FULLSCREEN_DEFAULT 0
+#define WINDOW_WIDTH 1366
+#define WINDOW_HEIGHT 768
+#define WINDOW_VSYNC 0
+#define WINDOW_FULLSCREEN 1
 
 /* PARTICLE_TEXTURE has a use and is loaded, but I failed to debug the texture display in the 5-hour time frame. */
 #define PARTICLE_TEXTURE "particle.png"
@@ -77,10 +76,6 @@ static unsigned int particle_buffer_first_texture = 0;
 static unsigned int particle_buffer_second_texture = 0;
 
 static unsigned int render_texture = 0;
-static unsigned int particle_count = 0;
-
-/* Doesn't follow naming scheme, as these used to be defines, but were upgraded to configurable variables. Sorry! */
-static int window_width = -1, window_height = -1, window_vsync = -1, window_fullscreen = -1; // These used to be defines, but we can switch them to config variables.
 
 /* Global function declarations */
 
@@ -92,16 +87,10 @@ void clear_window(void);
 bool initialize_shaders(void);
 bool initialize_buffers(void);
 void initialize_camera(void);
-bool initialize_config(void);
 
 /* Entry point function definition */
 
 int main(int argc, char** argv) {
-	if (!initialize_config()) {
-		printf("[main] Failed to load configuration.\n");
-		return 1;
-	}
-
 	if (!initialize_window()) {
 		printf("[main] Failed to initialize window.\n");
 		return 1;
@@ -135,8 +124,8 @@ int main(int argc, char** argv) {
 
 		glfwGetCursorPos(window_handle, &mx, &my); // Conv. from double to float, should be fine
 		/* we need to conv. abs mouse pos to world coordinates */
-		mouse_data[0] = (((mx / (float) window_width) - 0.5f) * 2.0f) * projection_camera_data[1];
-		mouse_data[1] = (((my / (float) window_height) - 0.5f) * -2.0f) * projection_camera_data[3];
+		mouse_data[0] = (((mx / (float) WINDOW_WIDTH) - 0.5f) * 2.0f) * projection_camera_data[1];
+		mouse_data[1] = (((my / (float) WINDOW_HEIGHT) - 0.5f) * -2.0f) * projection_camera_data[3];
 		
 		/* first, we run the particle advance. */
 		glUseProgram(shader_advance_program);
@@ -148,7 +137,7 @@ int main(int argc, char** argv) {
 
 		glBeginTransformFeedback(GL_POINTS);
 		glBindTexture(GL_TEXTURE_BUFFER, particle_buffer_first_texture);
-		glDrawArraysInstanced(GL_POINTS, 0, 1, particle_count);
+		glDrawArraysInstanced(GL_POINTS, 0, 1, PARTICLE_COUNT);
 		glEndTransformFeedback();
 
 		glDisable(GL_RASTERIZER_DISCARD);
@@ -191,7 +180,7 @@ int main(int argc, char** argv) {
 		glBindTexture(GL_TEXTURE_BUFFER, render_texture);
 
 		glBindBuffer(GL_ARRAY_BUFFER, 0); // We are using the texture buffer! No need to actually draw anything from the array buffer here.
-		glDrawArraysInstanced(GL_POINTS, 0, 1, particle_count);
+		glDrawArraysInstanced(GL_POINTS, 0, 1, PARTICLE_COUNT);
 
 		swap_window();
 	}	
@@ -203,7 +192,7 @@ int main(int argc, char** argv) {
 /* Other function definitions */
 
 void initialize_camera(void) {
-	float ratio = (float) window_width / (float) window_height;
+	float ratio = (float) WINDOW_WIDTH / (float) WINDOW_HEIGHT;
 
 	projection_matrix = glm::ortho(-ratio / 2.0f, ratio / 2.0f, -0.5f, 0.5f);
 
@@ -310,7 +299,7 @@ bool initialize_shaders(void) {
 	if (shader_render_tex_loc != -1) {
 		glUniform1i(shader_render_tex_loc, 1); // Use texture unit 1 for actual texture rendering.
 	} else {
-		printf("[initialize_shaders] could not locate uniform location for render_texture\n");
+		printf("[initialize_shaders] could not locate uniform location for render_texture (render)\n");
 	}
 
 	if (shader_render_color_loc != -1) {
@@ -412,10 +401,10 @@ bool initialize_buffers(void) {
 	glGenBuffers(1, &particle_buffer_first);
 	glGenBuffers(1, &particle_buffer_second);
 
-	float* particle_buffer = new float[particle_count * 4];
-	memset(particle_buffer, 0, sizeof(float) * particle_count * 4);
+	float* particle_buffer = new float[PARTICLE_COUNT * 4];
+	memset(particle_buffer, 0, sizeof(float) * PARTICLE_COUNT * 4);
 
-	for (unsigned int i = 0; i < particle_count; i++) {
+	for (unsigned int i = 0; i < PARTICLE_COUNT; i++) {
 		float* current_particle = particle_buffer + 4 * i;
 
 		current_particle[0] = ((float) rand() / ((float) INT_MAX / 2.0f) - 1.0f) / 1.02f;
@@ -424,10 +413,10 @@ bool initialize_buffers(void) {
 	}
 
 	glBindBuffer(GL_ARRAY_BUFFER, particle_buffer_first);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(float) * particle_count * 4, particle_buffer, GL_DYNAMIC_COPY);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(float) * PARTICLE_COUNT * 4, particle_buffer, GL_DYNAMIC_COPY);
 
 	glBindBuffer(GL_ARRAY_BUFFER, particle_buffer_second);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(float) * particle_count * 4, particle_buffer, GL_DYNAMIC_COPY);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(float) * PARTICLE_COUNT * 4, particle_buffer, GL_DYNAMIC_COPY);
 
 	glGenTextures(1, &particle_buffer_first_texture);
 	glGenTextures(1, &particle_buffer_second_texture);
@@ -441,76 +430,14 @@ bool initialize_buffers(void) {
 	return true;
 }
 
-bool initialize_config(void) {
-	FILE* config_file = fopen(CONFIG_FILENAME, "r");
-
-	if (!config_file) {
-		printf("[initialize_config] failed to open config file for reading\n");
-		return false;
-	}
-
-	char key[1024] = {0};
-	char value[1024] = {0};
-
-	while (fscanf(config_file, "%s %s", key, value) != EOF) {
-		/* Let's just really hope that the user doesn't fill any enormous lines into the file, for code length's sake. */
-
-		if (strcmp(key, "resolution_x") == 0) {
-			window_width = atoi(value);
-		}
-
-		if (strcmp(key, "resolution_y") == 0) {
-			window_height = atoi(value);
-		}
-
-		if (strcmp(key, "vertical_retrace") == 0) {
-			window_vsync = atoi(value);
-		}
-
-		if (strcmp(key, "fullscreen") == 0) {
-			window_fullscreen = atoi(value);
-		}
-
-		if (strcmp(key, "particle_count") == 0) {
-			particle_count = atoi(value);
-		}
-
-		memset(key, 0, 1024);
-		memset(value, 0, 1024);
-	}
-
-	if (window_width == -1) {
-		printf("[initialize_config] missing resolution_x key, using %d\n", WINDOW_WIDTH_DEFAULT);
-		window_width = WINDOW_WIDTH_DEFAULT;
-	}
-
-	if (window_height == -1) {
-		printf("[initialize_config] missing resolution_y key, using %d\n", WINDOW_HEIGHT_DEFAULT);
-		window_height = WINDOW_HEIGHT_DEFAULT;
-	}
-
-	if (window_vsync == -1) {
-		printf("[initialize_config] missing vertical_retrace key, using %d\n", WINDOW_VSYNC_DEFAULT);
-		window_vsync = WINDOW_VSYNC_DEFAULT;
-	}
-
-	if (window_fullscreen == -1) {
-		printf("[initialize_config] missing fullscreen key, using %d\n", WINDOW_FULLSCREEN_DEFAULT);
-		window_fullscreen = WINDOW_FULLSCREEN_DEFAULT;
-	}
-
-	if (particle_count == 0) {
-		printf("[initialize_config] missing particle_count key, using %d\n", PARTICLE_COUNT_DEFAULT);
-		particle_count = PARTICLE_COUNT_DEFAULT; // Shouldn't have any problem with typesafety, this is a define.
-	}
-
-	return true;
-}
-
 bool initialize_window(void) {
 	glfwInit();
 
-	window_handle = glfwCreateWindow(window_width, window_height, "particles", window_fullscreen ? glfwGetPrimaryMonitor() : NULL, NULL);
+	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+
+	window_handle = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "particles", WINDOW_FULLSCREEN ? glfwGetPrimaryMonitor() : NULL, NULL);
 
 	if (window_handle == NULL) {
 		printf("[initialize_window] GLFW failure\n");
@@ -524,7 +451,7 @@ bool initialize_window(void) {
 		return false;
 	}
 
-	glViewport(0, 0, window_width, window_height);
+	glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
 	glEnable(GL_BLEND);
@@ -541,7 +468,7 @@ bool update_window(void) {
 }
 
 void swap_window(void) {
-	glfwSwapInterval(window_vsync);
+	glfwSwapInterval(WINDOW_VSYNC);
 	glfwSwapBuffers(window_handle);
 }
 

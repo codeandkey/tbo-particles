@@ -11,6 +11,6 @@ const char* SHADER_RENDER_PS = GLSL(
 	void main(void) {
 		vec4 offset = vec4(0.1f, 0.1f, 0.1f, 0.0f);
 
-		pixel_color = (vec4(render_color, 1.0f) / 10.0f); 
+		pixel_color = texture2D(render_texture, pixel_texcoord) * (vec4(render_color, 1.0f) / 10.0f); 
 	}
 );
